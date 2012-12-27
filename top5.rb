@@ -1,9 +1,27 @@
 $LOAD_PATH << "."
 require 'CSV'
-require 'descriptive_statistics'
+require 'trollop'
+#require 'descriptive_statistics'
 require 'debugger'
 #csvinput = File.new(trainfile)
 #can use values_at to reference averages for standards, blanks, and experimental samples-- by using it as a string and using interpolation
+#debugger
+$opts = Trollop::options do
+  opt :blanks, "Blank columns", :default => "23..25"
+  opt :standards, "Standard columns", :default => "198..200" #.split('..').inject { |s,e| s.to_i..e.to_i }
+  opt :samples, "Sample columns", :default => "26..197"
+  opt :infile, "CSV input file", :default => "input.csv"
+  opt :outfile, "CSV input file", :default => "output.csv"
+  opt :fa, "Fatty Acyls [FA]"
+  opt :gl, "Glycerolipids [GL]"
+  opt :gp, "Glycerophospholipids [GP]"
+  opt :pk, "Polyketides [PK]"
+  opt :pr, "Prenol Lipids [PR]"
+  opt :sl, "Saccharolipids [SL]"
+  opt :sp, "Sphingolipids [SP]"
+  opt :st, "Sterol Lipids [ST]"
+end
+
 def progress(message, num, time = '') #https://github.com/princelab/mspire-simulator/blob/master/lib/progress.rb
                                       # move cursor to beginning of line
   cr = "\r"
@@ -41,17 +59,19 @@ Array.class_eval do
   end
 end
 class Top5
+
   def initialize
   end
 
   def read(blanks=23..25, standards=198..200, samples=26..197, csvinput="input.csv", output="output.csv")
-arrayinput = CSV.read(csvinput)
-puts "read CSV"
-    #arrayinput = []
+
+    arrayinput = CSV.read(csvinput)
+    puts "read CSV"
+      #arrayinput = []
 
     #CSV.parse("input.csv") do |row|
-     # row[samples].map!.to_f
-     # arrayinput << row
+    # row[samples].map!.to_f
+    # arrayinput << row
     #end
     header = arrayinput[0]
     arrayinput = arrayinput[1..-1]
@@ -60,47 +80,70 @@ puts "read CSV"
 #line = [line[0..22]].push(line[23..-1].each{|w| w = w.to_f }).flatten
 #puts "AFTER" + line.to_s
 #progresscount = 0
-      line.map! do |v|
+      line.map! do |v| #this process ought to be moved so only filtered ones are done, this was designed for a program that had no filter
         begin
           Float(v)
         rescue
           v
         end
+        
 #progresscount += 1
 #progress("completed floating point conversion for line ", (progresscount).to_i)
-
-#puts line
-#puts line.class
-       # line[23..-1].each do |v|
-        #  if v.is_a?(String)
-            #puts "boo"
-        #  else
-            #puts "yay"
-      #    end
-      #  end
+      end
+    end
+    #debugger
+    puts "string to numeric conversion complete"
+    progresscount = 0
+    @filteredarray=[]
+    @foundamatch=false
+    arrayinput.each do |v| #v is a line [a,b,b,....,d]
+      
+      #debugger
+      #coefficient of variance
+      #puts $opts.to_s
+      if ((($opts[:fa] and ("Fatty Acyls [FA]"==v[19])) || ($opts[:gl] and ("Glycerolipids [GL]"==v[19])) || ($opts[:gp] and ("Glycerophospholipids [GP]"==v[19])) || ($opts[:pk] and ("Polyketides [PK]"==v[19])) || ($opts[:pr] and ("Prenol Lipids [PR]"==v[19])) || ($opts[:sl] and ("Saccharolipids [SL]"==v[19])) || ($opts[:sp] and ("Sphingolipids [SP]"==v[19])) || ($opts[:st] and ("Sterol Lipids [ST]"==v[19]))) || (($opts[:fa] and ("Fatty Acyls [FA]"==v[12])) || ($opts[:gl] and ("Glycerolipids [GL]"==v[12])) || ($opts[:gp] and ("Glycerophospholipids [GP]"==v[12])) || ($opts[:pk] and ("Polyketides [PK]"==v[12])) || ($opts[:pr] and ("Prenol Lipids [PR]"==v[12])) || ($opts[:sl] and ("Saccharolipids [SL]"==v[12])) || ($opts[:sp] and ("Sphingolipids [SP]"==v[12])) || ($opts[:st] and ("Sterol Lipids [ST]"==v[12]))) ||  (($opts[:fa] and ("Fatty Acyls [FA]"==v[5])) || ($opts[:gl] and ("Glycerolipids [GL]"==v[5])) || ($opts[:gp] and ("Glycerophospholipids [GP]"==v[5])) || ($opts[:pk] and ("Polyketides [PK]"==v[5])) || ($opts[:pr] and ("Prenol Lipids [PR]"==v[5])) || ($opts[:sl] and ("Saccharolipids [SL]"==v[5])) || ($opts[:sp] and ("Sphingolipids [SP]"==v[5])) || ($opts[:st] and ("Sterol Lipids [ST]"==v[5]))))
+      then
+      @foundamatch=true
+          else
+            next
+            end
+        #lipidgroup=v[19]
+        #case lipidgroup
+        #when
+      #then next
+      #else
+        v.push((v[samples].stdev)/(v[samples].mean)) #modified from http://stackoverflow.com/questions/7749568/how-can-i-do-standard-deviation-in-ruby
+        @filteredarray << v
+        progresscount += 1
+        progress("computed mean corrected standard deviation for line", (progresscount).to_f)
+        #if (progresscount%5000==0) then puts @filteredarray.size.to_s #+ @filteredarray.to_s
+        #placeholder = 0
+        #CSV.open("dumpfile.csv", "wb") do |csv|
+        #csv << @filteredarray
+        #end
+        #end
 
 
       end
-    end
-    puts "string to numeric conversion complete"
-    progresscount = 0
-    arrayinput.each do |v|
-      v.push((v[samples].stdev)/(v[samples].mean)) #modified from http://stackoverflow.com/questions/7749568/how-can-i-do-standard-deviation-in-ruby
-      progresscount += 1
-progress("computed mean corrected standard deviation for line", (progresscount/(arrayinput.size)).to_f)
-    end
-    sorted = arrayinput.sort { |a, b| b[-1] <=> a[-1] } #modified from http://stackoverflow.com/questions/7033719/sorting-a-two-dimensional-array-by-second-value
-#    puts header.to_s
- #   puts sorted[0..4].to_s
-    CSV.open(output,"wb") do |csvline| #modified from http://stackoverflow.com/questions/4822422/output-array-to-csv-in-ruby
-    csvline << header
-    sorted[0..4].each{|v| csvline << v}
-    end
-    CSV.open("fulloutsorted.csv","wb") do |csvline| #modified from http://stackoverflow.com/questions/4822422/output-array-to-csv-in-ruby
-    csvline << header
-    sorted.each{|v| csvline << v}
-    end
+
+    if (@foundamatch==true) then
+      sorted = @filteredarray.sort { |a, b| b[-1] <=> a[-1] } #modified from http://stackoverflow.com/questions/7033719/sorting-a-two-dimensional-array-by-second-value
+                                                          #    puts header.to_s
+                                                          #   puts sorted[0..4].to_s
+      CSV.open(output, "wb") do |csvline| #modified from http://stackoverflow.com/questions/4822422/output-array-to-csv-in-ruby
+        csvline << header
+        sorted[0..4].each { |v| csvline << v }
+      end
+      CSV.open("fulloutsorted.csv", "wb") do |csvline| #modified from http://stackoverflow.com/questions/4822422/output-array-to-csv-in-ruby
+        csvline << header
+        sorted.each { |v| csvline << v }
+      end
+      else
+  puts "no matches found!"
+      end
   end
-end
+
+  end
 a= Top5.new
 a.read
+f
