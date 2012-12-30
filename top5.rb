@@ -6,10 +6,12 @@ require 'debugger'
 #csvinput = File.new(trainfile)
 #can use values_at to reference averages for standards, blanks, and experimental samples-- by using it as a string and using interpolation
 #debugger
+#to do: need to add fraction observed in experimental runs
+#to do: need to add
 $opts = Trollop::options do
   opt :blanks, "Blank columns", :default => "23..25"
-  opt :standards, "Standard columns", :default => "198..200" #.split('..').inject { |s,e| s.to_i..e.to_i }
-  opt :samples, "Sample columns", :default => "26..197"
+  #opt :standards, "Standard columns", :default => "198..200" # standard columns are incompatible with nomis-- with NOMIS, you spike each sample with standard.
+  opt :samples, "Sample columns", :default => "26..197" #sample should be spiked with standard, otherwise NOMIS won't work
   opt :infile, "CSV input file", :default => "input.csv"
   opt :outfile, "CSV input file", :default => "output.csv"
   opt :fa, "Fatty Acyls [FA]"
@@ -61,10 +63,17 @@ end
 class Top5
 
   def initialize
+  @blanks = $opts[:blanks].split('..').inject { |beginning,ending| beginning.to_i..ending.to_i }#http://stackoverflow.com/questions/53472/best-way-to-convert-a-ruby-string-range-to-a-range-object
+  @samples = $opts[:samples].split('..').inject { |beginning,ending| beginning.to_i..ending.to_i }#http://stackoverflow.com/questions/53472/best-way-to-convert-a-ruby-string-range-to-a-range-object
+  @csvinput = $opts[:infile]
+  @output = $opts[:outfile]
   end
 
   def read(blanks=23..25, standards=198..200, samples=26..197, csvinput="input.csv", output="output.csv")
-
+    blanks = @blanks #these need to be removed, just better coding to reference class variables instead
+    samples = @samples
+    csvinput = @csvinput
+    output = @output
     arrayinput = CSV.read(csvinput)
     puts "read CSV"
       #arrayinput = []
@@ -146,4 +155,3 @@ class Top5
   end
 a= Top5.new
 a.read
-f
